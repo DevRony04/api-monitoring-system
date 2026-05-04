@@ -4,53 +4,62 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// helper
+const requireEnv = (key) => {
+  if (!process.env[key]) {
+    throw new Error(`Missing env variable: ${key}`);
+  }
+  return process.env[key];
+};
+
 const config = {
-    // server
-    node_env : process.env.NODE_ENV || "development",
-    port : parseInt(process.env.PORT || "5000", 10),
+  // Server
+  node_env: process.env.NODE_ENV || "development",
+  port: parseInt(process.env.PORT || "5000", 10),
 
-    //MongoDB
-    mongo: {
-        uri: process.env.MONGO_URI || 'mongodb://localhost:27017/api_monitoring',
-        dbName: process.env.MONGO_DB_NAME || 'api_monitoring',
-    },
+  // MongoDB
+  mongo: {
+    uri: requireEnv("MONGO_URI"),
+    dbName: process.env.MONGO_DB_NAME || "api_monitoring",
+  },
 
-    //PostgreSQL
-    postgres: {
-         host: process.env.PG_HOST || 'localhost',
-        port: parseInt(process.env.PG_PORT || '5432', 10),
-        database: process.env.PG_DATABASE || 'api_monitoring',
-        user: process.env.PG_USER || 'postgres',
-        password: process.env.PG_PASSWORD || 'postgres',
-    },
+  // PostgreSQL
+  postgres: {
+    host: requireEnv("PG_HOST"),
+    port: parseInt(process.env.PG_PORT || "5432", 10),
+    database: requireEnv("PG_DATABASE"),
+    user: requireEnv("PG_USER"),
+    password: requireEnv("PG_PASSWORD"),
+  },
 
-    //RabbitMQ
-    rabbitmq: {
-        url: process.env.RABBITMQ_URL || 'amqp://localhost:5672',
-        queue: process.env.RABBITMQ_QUEUE || 'api_hits',
-        publisherConfirms: process.env.RABBITMQ_PUBLISHER_CONFIRMS === 'true' || false, // MSGS LOST 
-        retryAttempts: parseInt(process.env.RABBITMQ_RETRY_ATTEMPTS || '3', 10),
-        retryDelay: parseInt(process.env.RABBITMQ_RETRY_DELAY || '1000', 10),
-    },
+  // RabbitMQ
+  rabbitmq: {
+    url: requireEnv("RABBITMQ_URL"),
+    queue: process.env.RABBITMQ_QUEUE || "api_hits",
+    publisherConfirms: process.env.RABBITMQ_PUBLISHER_CONFIRMS === "true",
+    retryAttempts: parseInt(process.env.RABBITMQ_RETRY_ATTEMPTS || "3", 10),
+    retryDelay: parseInt(process.env.RABBITMQ_RETRY_DELAY || "1000", 10),
+  },
 
-    //jwt
-         jwt: {
-        secret: process.env.JWT_SECRET || "DEVELOPER_BY_PROFESSION_RIDER_BY_PASSION",
-        expiresIn: process.env.JWT_EXPIRES_IN || '24h',
-    },
+  // JWT
+  jwt: {
+    secret: requireEnv("JWT_SECRET"),
+    expiresIn: process.env.JWT_EXPIRES_IN || "24h",
+  },
 
-    //Rate Limit
-    rateLimit: {
-        windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes
-        maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000', 10), // 1000 req / 15 min per IP
-    },
+  // Rate Limit
+  rateLimit: {
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "60000", 10),
+    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "100", 10),
+  },
 
-    //cookie
-     cookie: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        expiresIn: 24 * 60 * 60 * 1000
-    }
-}
+  // Cookie
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    expiresIn: 24 * 60 * 60 * 1000,
+  },
+};
 
 export default config;

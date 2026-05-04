@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -33,6 +31,11 @@ services:
     networks:
       - api-monitoring-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -69,17 +72,105 @@ services:
       - api-monitoring-network
     restart: unless-stopped
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+
+  api-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-monitoring-app
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+
+      # MongoDB
+      MONGO_URI: mongodb://mongo:27017/api_monitoring
+      MONGO_DB_NAME: api_monitoring
+
+      # PostgreSQL
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: api_monitoring
+      PG_USER: postgres
+      PG_PASSWORD: rony
+
+      # RabbitMQ
+      RABBITMQ_URL: amqp://api_user:secure_password@rabbitmq:5672/api_monitoring
+      RABBITMQ_QUEUE: api_hits
+
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 24h
+
+      # Rate Limiting
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX_REQUESTS: 100
+
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - api-monitoring-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile.consumer
+    container_name: api-monitoring-consumer
+    environment:
+      NODE_ENV: production
+
+      # MongoDB
+      MONGO_URI: mongodb://mongo:27017/api_monitoring
+      MONGO_DB_NAME: api_monitoring
+
+      # PostgreSQL
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DATABASE: api_monitoring
+      PG_USER: postgres
+      PG_PASSWORD: rony
+
+      # RabbitMQ
+      RABBITMQ_URL: amqp://api_user:secure_password@rabbitmq:5672/api_monitoring
+      RABBITMQ_QUEUE: api_hits
+
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - api-monitoring-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-    driver: local
   rabbitmq_data:
-    driver: local
   mongo_data:
-    driver: local
   pgadmin_data:
-    driver: local
 
 networks:
   api-monitoring-network:
